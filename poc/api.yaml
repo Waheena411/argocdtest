@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: poc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/api: runtime/default  
+    spec:
+      automountServiceAccountToken: false 
+      # volumes:
+      # - name: ca-pemstore
+      #   configMap:
+      #     name: ca-pemstore      
+      nodeSelector:
+        agentpool: general
+      securityContext:
+        fsGroup: 2000
+        runAsGroup: 2000
+        runAsUser: 1000   
+      containers:
+        - name: api
+          image: intuitionsaasprod.azurecr.io/linux/intuition/api:2023.114.18715-253a287656
+          command: ["dotnet"]
+          args: ["Intuition.Web.Api.dll"]
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 60          
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "550Mi"
+            limits:
+              cpu: "300m"
+              memory: "800Mi"
+          ports:
+            - containerPort: 8080
+         
+          # volumeMounts:
+          # - name: ca-pemstore
+          #   mountPath: /etc/ssl/certs/my-cert.pem
+          #   subPath: my-cert.pem
+          #   readOnly: false               
+          securityContext:
+            runAsUser: 1000 
+            allowPrivilegeEscalation: false
+          env:
+            - name: Elastic__Uri
+              valueFrom:
+                secretKeyRef:
+                  name: es-secret
+                  key: uri
+            - name: Elastic__EnableSecurity
+              value: "true"
+            - name: Elastic__Username
+              valueFrom:
+                secretKeyRef:
+                  name: es-secret
+                  key: username
+            - name: Elastic__Password
+              valueFrom:
+                secretKeyRef:
+                  name: es-secret
+                  key: password
+            - name: AuthServer__Authority
+              value: "http://auth"
+            - name: AuthServerFQDN
+              value: "https://cstest.auth.intuitioncloud.io"
+            - name: Logging__LogLevel__Default
+              value: "Warning"
+            - name: Logging__Console__LogLevel
+              value: "Warning"
+            - name: ApplicationInsights__TelemetryChannel__EndpointAddress
+              value: "http://telemetry-proxy/v2/track"
+            - name: RedisConnectionString
+              value: "redis:6379,allowAdmin=true,connectRetry=50"
+            - name: MaximumFileSizeBytes__Memo
+              value: "25000000"
+            - name: MaximumFileSizeBytes__DataImport
+              value: "2100000"
+            - name: MachineLearningAPI__sklearn_V1__Uri
+              value: "http://ml-sklearn:8888"
+            - name: EnableSwagger
+              value: "false"
+            - name: NifiCall__Uri
+              value: http://nifi:9002/upload
+            - name: NifiApi__Uri
+              value: http://nifi:8080/nifi-api/
+            - name: EncryptionCertRawKey
+              valueFrom:
+                secretKeyRef:
+                  name: intuition-cypher-keys
+                  key: encryptKey
+            - name: SigningCertRawKey
+              valueFrom:
+                secretKeyRef:
+                  name: intuition-cypher-keys
+                  key: signKey
+            - name: PdfConverter__Uri
+              value: "http://pdf/"           
+            - name: FurtherInfoCall__Uri
+              value: https://cstest-poc-info.intuitioncloud.io/   
+            - name: CorsOrigins
+              value: "https://cstest.intuitioncloud.io" 
+            # - name: CorsOrigins
+            #   value: "https://cstest.api.poc.ingenuous.local/" 
+
+        
+            # - name: SECRET_USERNAME
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: ingress-tls-csi
+            #       key: username 
+      #     volumeMounts:
+      #      - name: secrets-store-inline
+      #        mountPath: "/mnt/secrets-store"
+      #        readOnly: true
+      # volumes:
+      # - name: secrets-store-inline
+      #   csi:
+      #     driver: secrets-store.csi.k8s.io
+      #     readOnly: true
+      #     volumeAttributes:
+      #       secretProviderClass: "azure-tls"                 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: poc
+spec:
+  type: ClusterIP
+  selector:
+    app: api
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api
+  namespace: poc
+spec:
+  minAvailable: 75%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
