@@ -12,12 +12,12 @@ spec:
     metadata:
       labels:
         app: web
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/web: runtime/default
+      #otations:
+       #iner.apparmor.security.beta.kubernetes.io/web: runtime/default
     spec:
       automountServiceAccountToken: false 
       nodeSelector:
-        agentpool: appuat
+        agentpool: general
       securityContext:
         fsGroup: 2000
         runAsGroup: 2000
@@ -51,15 +51,15 @@ spec:
               add: ["NET_BIND_SERVICE", "SYS_TIME"]            
           env:
             - name: WebUrl
-              value: "https://cstest.intuitioncloud.io"
-            - name: ApiUrl
-              value: "https://cstest.api.intuitioncloud.io/api/v1"
-            - name: Auth__Authority
-              value: "https://cstest.auth.intuitioncloud.io"
-            - name: Logging__LogLevel__Default
-              value: "Warning"
-            - name: Logging__Console__LogLevel
-              value: "Warning"              
+              value: "https://poctest.intuitioncloud.io"
+            # - name: ApiUrl
+            #   value: "https://poctest.api.intuitioncloud.io/api/v1"
+            # - name: Auth__Authority
+            #   value: "https://poctest.auth.intuitioncloud.io"
+            # - name: Logging__LogLevel__Default
+            #   value: "Warning"
+            # - name: Logging__Console__LogLevel
+            #   value: "Warning"              
           #- name: Dashboard__Embed=1a2f64e0-9d57-11e9-8400-9bd68a15f197?embed
           #  value: "true"
           #- name: Dashboard__Technical=daeac560-9d59-11e9-8400-9bd68a15f197?embed
